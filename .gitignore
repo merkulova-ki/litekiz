@@ -1,0 +1,24 @@
+# редакторы
+.idea/
+.vscode/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Node и сборка
+node_modules/
+dist/
+
+# данные и секреты
+*.db
+.env
+.env.*
+!.env.example
+
+# прочее
+*.log
+.DS_Store
