@@ -1,0 +1,50 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cz}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cz}
+      POSTGRES_DB: ${POSTGRES_DB:-litekiz}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cz} -d ${POSTGRES_DB:-litekiz}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-cz}:${POSTGRES_PASSWORD:-cz}@db:5432/${POSTGRES_DB:-litekiz}
+      APP_SECRET: ${APP_SECRET:-dev-secret}
+      DEMO_SEED_ON_START: "true"
+      CORS_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173"
+    volumes:
+      - ./backend/app:/app/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    environment:
+      VITE_API_TARGET: http://backend:8000
+      VITE_USE_POLLING: "true"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "${DEV_WEB_PORT:-5173}:5173"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata_dev:
