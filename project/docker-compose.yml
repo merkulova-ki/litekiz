@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cz}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cz}
+      POSTGRES_DB: ${POSTGRES_DB:-litekiz}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cz} -d ${POSTGRES_DB:-litekiz}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    user: "1000:1000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-cz}:${POSTGRES_PASSWORD:-cz}@db:5432/${POSTGRES_DB:-litekiz}
+      APP_SECRET: ${APP_SECRET:-change-me-in-production}
+      DEMO_SEED_ON_START: ${DEMO_SEED_ON_START:-true}
+      CODE_PRICE: ${CODE_PRICE:-0.61}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/api/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+    
+  frontend:
+    build: ./frontend
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  pgdata:
